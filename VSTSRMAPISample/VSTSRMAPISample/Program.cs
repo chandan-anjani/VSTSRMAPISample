@@ -25,14 +25,14 @@ namespace VSTSRMAPISample
 
             ReleaseHttpClient rmClient = connection.GetClient<ReleaseHttpClient>();
 
-           /* Uncomment the scenario as per your need
-            * Scenario1 :- Deploy a particular environment 
-            var releaseDefinition = GetReleaseDefintion(rmClient, releaseDefinitionId);
+            /* Uncomment the scenario as per your need
+             * Scenario1 :- Deploy a particular environment 
+             var releaseDefinition = GetReleaseDefintion(rmClient, releaseDefinitionId);
 
-            var release = CreateRelease(rmClient, releaseDefinition);
-            const int environmentIdToDeploy = 3;
-            var releaseEnvironment = DeployAnEnvironment(rmClient, release.Id, release.Environments[environmentIdToDeploy].Id);
-            */
+             var release = CreateRelease(rmClient, releaseDefinition);
+             const int environmentIdToDeploy = 3;
+             var releaseEnvironment = DeployAnEnvironment(rmClient, release.Id, release.Environments[environmentIdToDeploy].Id);
+             */
 
             /* Scenario2: Create release defintion using given json 
 
@@ -44,8 +44,11 @@ namespace VSTSRMAPISample
             var release = CreateRelease(rmClient, newDefinition);
             var updatedRelease = UpdateReleaseWithApprover(rmClient, release); */
 
-            /* Scenario4: Get release tasks */
-            GetReleaseTasks(rmClient);
+            /* Scenario4: Get release tasks 
+            GetReleaseTasks(rmClient); */
+
+            /* Scenario5: Get workitems for a given release while comparing with previous release*/
+            GetWorkItemsForARelease(rmClient, 136);
         }
 
         static void GetReleaseTasks(ReleaseHttpClient rmClient)
@@ -56,6 +59,23 @@ namespace VSTSRMAPISample
 
             var releaseTaskAcrossAllPhase = rmClient.GetTasksAsync(projectName, releaseId, releaseEnvironmentId).Result;
             var releaseTaskForAPhaseId = rmClient.GetTasksForTaskGroupAsync(projectName, releaseId, releaseEnvironmentId, releaseDeployPhaseId).Result;
+        }
+
+        static void GetWorkItemsForARelease(ReleaseHttpClient rmClient, int currentReleaseId)
+        {
+            var currentRelease = rmClient.GetReleaseAsync(project: projectName, releaseId: currentReleaseId).Result;
+            var definitionId = currentRelease.ReleaseDefinition.Id;
+            var lastTwoRelease = rmClient.GetReleasesAsync(
+                project: projectName,
+                definitionId: definitionId,
+                continuationToken: currentReleaseId,
+                top: 2,
+                queryOrder: ReleaseQueryOrder.Descending).Result;
+
+            var baseReleaseId = lastTwoRelease[1].Id;
+
+            var workItems = rmClient.GetReleaseWorkItemsRefsAsync(project: projectName, releaseId: currentReleaseId, baseReleaseId: baseReleaseId).Result;
+
         }
 
         static ReleaseDefinition CreateReleaseDefinition(ReleaseHttpClient rmClient, string rdJson)
