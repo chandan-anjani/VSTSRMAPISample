@@ -50,9 +50,8 @@ namespace VSTSRMAPISample
             /* Scenario5: Get workitems for a given release while comparing with previous release
             GetWorkItemsForARelease(rmClient, 136); */
 
-            /*Scenario6: Cancel a deployment to an environment*/
-            DeployAnEnvironment(rmClient, 161, 197);
-            CancelADeploymentToAnEnvironment(rmClient, 161, 197);
+            /*Scenario6: Cancel all deployments*/
+            CancelAllInProgressDeployments(rmClient);
         }
 
         static void GetReleaseTasks(ReleaseHttpClient rmClient)
@@ -106,12 +105,27 @@ namespace VSTSRMAPISample
             return rmClient.CreateReleaseAsync(rmMetaData, project: projectName).Result;
         }
 
-        static ReleaseEnvironment CancelADeploymentToAnEnvironment(ReleaseHttpClient rmClient, int releaseId, int environmentIdToDeploy)
+        static void CancelAllInProgressDeployments(ReleaseHttpClient rmClient)
         {
-            ReleaseEnvironmentUpdateMetadata envMetaData = new ReleaseEnvironmentUpdateMetadata();
-            envMetaData.Status = EnvironmentStatus.Canceled;
-            envMetaData.Comment = "Good to cancel";
-            return rmClient.UpdateReleaseEnvironmentAsync(envMetaData, projectName, releaseId, environmentIdToDeploy).Result;
+            try
+            {
+                var allInProgressEnvironments = rmClient.GetDeploymentsAsync(
+                    projectName,
+                    deploymentStatus: DeploymentStatus.InProgress).Result;
+                foreach (var inProgressEnvironment in allInProgressEnvironments)
+                {
+                    ReleaseEnvironmentUpdateMetadata envMetaData = new ReleaseEnvironmentUpdateMetadata();
+                    envMetaData.Status = EnvironmentStatus.Canceled;
+                    envMetaData.Comment = "Good to cancel";
+                    var cancelledEnvironment = rmClient.UpdateReleaseEnvironmentAsync(
+                        envMetaData,
+                        projectName,
+                        inProgressEnvironment.Release.Id,
+                        inProgressEnvironment.ReleaseEnvironment.Id).Result;
+                }
+            }
+            catch(Exception)
+            {  }
         }
 
         static ReleaseEnvironment DeployAnEnvironment(ReleaseHttpClient rmClient, int releaseId, int environmentIdToDeploy)
