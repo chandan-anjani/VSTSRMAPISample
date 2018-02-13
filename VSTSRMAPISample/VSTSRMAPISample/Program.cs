@@ -6,6 +6,11 @@ using Microsoft.VisualStudio.Services.ReleaseManagement.WebApi.Clients;
 using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json;
 using Microsoft.VisualStudio.Services.ReleaseManagement.WebApi.Contracts;
+using Microsoft.VisualStudio.Services.Security.Client;
+using Microsoft.VisualStudio.Services.ReleaseManagement.WebApi.Security;
+using System.Collections;
+using System.Collections.Generic;
+using Microsoft.VisualStudio.Services.Security;
 
 namespace VSTSRMAPISample
 {
@@ -50,8 +55,11 @@ namespace VSTSRMAPISample
             /* Scenario5: Get workitems for a given release while comparing with previous release
             GetWorkItemsForARelease(rmClient, 136); */
 
-            /*Scenario6: Cancel all deployments*/
-            CancelAllInProgressDeployments(rmClient);
+            /*Scenario6: Cancel all deployments
+            CancelAllInProgressDeployments(rmClient); */
+
+            /* Scenario7: Get release definition acls 
+            var acls = GetReleaseDefinitionAccessControlList(connection, Guid.Parse("9cb192fa-1a7b-4dce-b681-00c4a65b3b98"), 1); */
         }
 
         static void GetReleaseTasks(ReleaseHttpClient rmClient)
@@ -151,6 +159,26 @@ namespace VSTSRMAPISample
 
             var updatedRelease = rmClient.UpdateReleaseAsync(release, projectName, release.Id).Result;
             return updatedRelease;
+        }
+
+        static IEnumerable<AccessControlList>  GetReleaseDefinitionAccessControlList(VssConnection connection, Guid projectId, int releaseDefinitionId)
+        {
+            // We need the security client to talk to RM service instead of the default TFS to get us the ACLs for release definition
+            SecurityHttpClient securityHttpClient = connection.GetClient<SecurityHttpClient>(Guid.Parse(ReleaseManagementApiConstants.InstanceType));
+            var acls = securityHttpClient.QueryAccessControlListsAsync(
+                SecurityConstants.ReleaseManagementSecurityNamespaceId,
+                CreateToken(projectId, releaseDefinitionId),
+                null, // all desciptors
+                true,
+                true).Result;
+
+            return acls;
+        }
+
+        private static string CreateToken(Guid projectId, int releaseDefinitionId)
+        {
+            const string tokenNameFormat = "{0}/{1}";
+            return string.Format(tokenNameFormat, projectId, releaseDefinitionId);
         }
     }
 }
